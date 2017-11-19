@@ -32,6 +32,7 @@ import com.google.common.collect.ImmutableSortedMap;
 import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.PageLoadStrategy;
+import org.openqa.selenium.Proxy;
 import org.openqa.selenium.UnexpectedAlertBehaviour;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.firefox.internal.ProfilesIni;
@@ -214,7 +215,7 @@ public class FirefoxOptions extends MutableCapabilities {
    * useful when actually starting firefox.
    */
   public FirefoxBinary getBinary() {
-    return getBinaryOrNull().orElse(new FirefoxBinary());
+    return getBinaryOrNull().orElseGet(FirefoxBinary::new);
   }
 
   public Optional<FirefoxBinary> getBinaryOrNull() {
@@ -296,6 +297,11 @@ public class FirefoxOptions extends MutableCapabilities {
     return this;
   }
 
+  public FirefoxOptions setProxy(Proxy proxy) {
+    setCapability(CapabilityType.PROXY, proxy);
+    return this;
+  }
+
   @Override
   public void setCapability(String key, Object value) {
     switch (key) {
@@ -332,7 +338,7 @@ public class FirefoxOptions extends MutableCapabilities {
   }
 
   @Override
-  public Map<String, ?> asMap() {
+  public Map<String, Object> asMap() {
     TreeMap<String, Object> toReturn = new TreeMap<>();
     toReturn.putAll(super.asMap());
 

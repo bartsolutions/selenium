@@ -28,7 +28,9 @@ import com.google.common.collect.Maps;
 import com.google.common.io.Files;
 
 import org.openqa.selenium.MutableCapabilities;
+import org.openqa.selenium.Proxy;
 import org.openqa.selenium.WebDriverException;
+import org.openqa.selenium.remote.CapabilityType;
 
 import java.io.File;
 import java.io.IOException;
@@ -199,8 +201,13 @@ public class OperaOptions extends MutableCapabilities {
     return experimentalOptions.get(checkNotNull(name));
   }
 
+  public OperaOptions setProxy(Proxy proxy) {
+    setCapability(CapabilityType.PROXY, proxy);
+    return this;
+  }
+
   @Override
-  public Map<String, ?> asMap() {
+  public Map<String, Object> asMap() {
     Map<String, Object> toReturn = new TreeMap<>();
     toReturn.putAll(super.asMap());
 

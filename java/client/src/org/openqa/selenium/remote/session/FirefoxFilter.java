@@ -17,24 +17,51 @@
 
 package org.openqa.selenium.remote.session;
 
-import com.google.common.collect.ImmutableMap;
-
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 public class FirefoxFilter implements CapabilitiesFilter {
   // Note: we don't take a dependency on the FirefoxDriver jar as it might not be on the classpath
 
   @Override
   public Map<String, Object> apply(Map<String, Object> unmodifiedCaps) {
-    ImmutableMap<String, Object> caps = unmodifiedCaps.entrySet().parallelStream()
+    Map<String, Object> caps = unmodifiedCaps.entrySet().parallelStream()
         .filter(entry ->
                     ("browserName".equals(entry.getKey()) && "firefox".equals(entry.getValue())) ||
                     entry.getKey().startsWith("firefox_") ||
                     entry.getKey().startsWith("moz:"))
         .filter(entry -> Objects.nonNull(entry.getValue()))
-        .distinct()
-        .collect(ImmutableMap.toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));
+        .collect(Collectors.toMap(
+            Map.Entry::getKey,
+            Map.Entry::getValue,
+            (l, r) -> l,
+            TreeMap::new));
+
+    // If we only have marionette in the caps, the user is asking for firefox. Make sure we inject
+    // the browser name to be sure.
+    if (unmodifiedCaps.containsKey("marionette") && !caps.containsKey("browserName")) {
+      caps.put("browserName", "firefox");
+    }
+
+    // People might have just put the binary and profile in the OSS payload, and not in firefox
+    // options.
+    @SuppressWarnings("unchecked")
+    Map<String, Object> options = (Map<String, Object>) unmodifiedCaps.getOrDefault(
+        "moz:firefoxOptions",
+        new TreeMap<>());
+    if (unmodifiedCaps.containsKey("firefox_binary") && !options.containsKey("binary")) {
+      // Here's hoping that the binary is just a string. It should be as FirefoxBinary.toJson just
+      // encodes the path.
+      options.put("binary", unmodifiedCaps.get("firefox_binary"));
+    }
+    if (unmodifiedCaps.containsKey("firefox_profile") && !options.containsKey("profile")) {
+      options.put("profile", unmodifiedCaps.get("firefox_profile"));
+    }
+    if (!options.isEmpty()) {
+      caps.put("moz:firefoxOptions", options);
+    }
 
     return caps.isEmpty() ? null : caps;
   }

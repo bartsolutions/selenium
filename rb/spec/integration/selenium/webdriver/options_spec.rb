@@ -20,7 +20,7 @@ require_relative 'spec_helper'
 module Selenium
   module WebDriver
     describe Options do
-      describe 'logs', except: {browser: %i[firefox ie edge safari]} do
+      describe 'logs', only: {browser: %i[ff_esr chrome]} do
         it 'can fetch remote log types', only: {driver: :remote} do
           expect(driver.manage.logs.available_types).to include(:server, :browser, :driver)
         end
@@ -30,9 +30,9 @@ module Selenium
           expect(driver.manage.logs.available_types).not_to include(:server)
         end
 
-        # TODO (Alex): Investigate why this spec passes on macOS but fails on Linux.
-        it 'can get the browser log', only: {browser: %i[firefox ff_esr]}, except: {browser: :chrome, platform: :linux} do
-          driver.navigate.to url_for('simpleTest.html')
+        it 'can get the browser log' do
+          driver.navigate.to url_for('errors.html')
+          driver.find_element(tag_name: 'input').click
 
           entries = driver.manage.logs.get(:browser)
           expect(entries).not_to be_empty
@@ -50,7 +50,7 @@ module Selenium
       end
 
       describe 'cookie management' do
-        it 'should get all', except: {browser: :safari} do
+        it 'should get all' do
           driver.navigate.to url_for('xhtmlTest.html')
           driver.manage.add_cookie name: 'foo', value: 'bar'
 
@@ -61,7 +61,7 @@ module Selenium
           expect(cookies.first[:value]).to eq('bar')
         end
 
-        it 'should get named cookie', except: {driver: :safari} do
+        it 'should get named cookie' do
           driver.navigate.to url_for('xhtmlTest.html')
           driver.manage.add_cookie name: 'foo', value: 'bar'
 
@@ -86,7 +86,7 @@ module Selenium
           expect(driver.manage.all_cookies).to be_empty
         end
 
-        it 'should use DateTime for expires', except: {browser: :safari} do
+        it 'should use DateTime for expires', except: {browser: %i[safari safari_preview]} do
           driver.navigate.to url_for('xhtmlTest.html')
 
           expected = DateTime.new(2039)

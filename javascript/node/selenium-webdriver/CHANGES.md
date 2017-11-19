@@ -2,7 +2,7 @@
 
 ### Notice
 
-*  The minimum supported version of Node is now 8.6.0
+*  The minimum supported version of Node is now 8.9.0 LTS
 
 ### Changes to Supported Browsers
 
@@ -16,24 +16,27 @@ mode.
 
 ### API Changes
 
-*  Added `webdriver.manage().window().minimize()`
-*  Added `webdriver.manage().window().fullscreen()`
 *  The core WebDriver API no longer uses promise manager
    -  Removed `index.Builder#setControlFlow()`
    -  The following thenable types no longer have a `cancel()` method:
      -  The dynamically generated thenable WebDrivers created by `index.Builder`
      -  `lib/webdriver.AlertPromise`
      -  `lib/webdriver.WebElementPromise`
-*  The `testing/index` module no longer wraps the promise manager
 *  Removed `remote/index.DriverService.prototype.stop()` (use `#kill()` instead)
 *  Removed the `firefox.Binary` class. Custom binaries can still be selected
    using `firefox.Options#setBinary()`. Likewise, custom binary arguments can be
    specified with `firefox.Options#addArguments()`.
 *  Removed the `lib/actions` module
+*  Removed the `lib/events` module
 *  Removed the `phantomjs` module
 *  Removed the 'opera' module
 *  Removed the `WebDriver.attachToSession()` factory method. Users can just use
    use the `WebDriver` constructor directly instead.
+*  Removed the `WebDriver.prototype.call()` method. This was used to inject
+   custom function calls into the control flow. Now that the promise manager is
+   no longer used, this method is no longer necessary. Users are now responsible
+   for coordinating actions (ideally with async functions) and can just call
+   functions directly instead of through `driver.call()`.
 *  Removed the `WebDriver.prototype.touchActions()` method. Action sequences
    are now defined from a single origin: `WebDriver.prototype.actions()`.
 *  Removed the promise manager from `lib/promise`, which includes the removal
@@ -62,6 +65,75 @@ mode.
    -  setDefaultFlow
    -  when (use Promise.resolve)
 *  Renamed `WebDriver#schedule()` to `WebDriver#execute()`
+*  Changes to the `Builder` class:
+   -  Removed setEnableNativeEvents
+   -  Removed setScrollBehavior
+*  Changes to `firefox.Driver`
+   -  Added installAddon(path)
+   -  Added uninstallAddon(id)
+*  Changes to `firefox.Options`
+   -  Removed setLoggingPreferences (was a no-op)
+   -  setProfile now only accepts a path to an existing profile
+   -  Added addExtensions
+   -  Added setPreference
+*  Removed the `firefox.Profile` class. All of its functionality is now
+   provided directly by `firefox.Options`
+*  Removed the `firefox/binary` module
+*  Removed the `firefox/profile` module
+*  Changes to `safari.Options`
+   -  Removed setCleanSession (was a no-op)
+   -  Removed setLoggingPreferences (was a no-op)
+   -  Removed setProxy (was a no-op)
+*  Changes to `lib/capabilities.Browser`:
+   -  Removed several enum values.
+      -  ANDROID (use Chrome for Android; see docs on the chrome module)
+      -  IPAD (no support available)
+      -  IPHONE (no support available)
+      -  OPERA (use Chrome)
+      -  PHANTOM_JS (use Chrome or Firefox in headless mode)
+      -  HTMLUNIT (use Chrome or Firefox in headless mode)
+*  Changes to `lib/capabilities.Capabilities`:
+   -  Removed static factory methods android(), ipad(), iphone(), opera(),
+      phantomjs(), htmlunit(), and htmlunitwithjs(). Users can still manually
+      configure capabilities for these, but their use is not recommended and
+      they will no longer be surfaced in the API.
+*  Changes to `lib/error`:
+   -   Added
+       -   ElementClickInterceptedError
+       -   InsecureCertificateError
+       -   InvalidCoordinatesError
+       -   NoSuchCookieError
+   -   Removed
+       -  ElementNotVisibleError
+       -  InvalidElementCoordinatesError
+*  Changes to `lib/webdriver.WebDriver`:
+   -  Dropped support for "requiredCapabilities" from WebDriver.createSession
+*  Changes to `lib/webdriver.Options` (`driver.manage()`):
+   -  Removed timeouts (use get/setTimeouts)
+*  Changes to `lib/webdriver.Window` (`driver.manage().window()`):
+   -   Added
+       -  getRect
+       -  setRect
+       -  fullscreen
+       -  minimize
+   -   Removed (use the getRect/setRect methods)
+       -  getPosition
+       -  setPosition
+       -  getSize
+       -  setSize
+*  Removed the `testing/assert` module
+*  Changes to `testing/index`
+   -  Since the promise manager has been removed, it is no longer necessary to
+      wrap the Mocha test hooks; instead, users can simply use async functions.
+      The following have all been removed:
+      -  describe
+      -  before
+      -  beforeEach
+      -  after
+      -  afterEach
+      -  it
+   -  Added the `suite` function. For details, refer to the jsdoc or
+      `example/google_search_test.js`
 
 ### Changes for W3C WebDriver Spec Compliance
 
@@ -69,7 +141,7 @@ mode.
    <https://www.w3.org/TR/webdriver/#actions>. For details, refer to the JS doc
    on the `lib/webdriver.ActionSequence` class. For simplicity, support for the
    legacy actions API has been removed.
-*  Added supported for minimizing windows and toggling fullscreen.
+*  All window manipulation commands are now supported.
 
 
 ## v3.6.0

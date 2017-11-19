@@ -17,8 +17,10 @@
 
 package org.openqa.selenium.json;
 
+import com.google.common.io.CharStreams;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonParseException;
 import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
@@ -30,7 +32,6 @@ import com.google.gson.stream.JsonWriter;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.UncheckedIOException;
-import java.io.Writer;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.LinkedList;
@@ -57,6 +58,10 @@ public class Json {
     return toJson.convert(toConvert);
   }
 
+  public JsonElement toJsonElement(Object toConvert) {
+    return toJson.convertObject(toConvert);
+  }
+
   public <T> T toType(Object source, Class<T> typeOfT) {
     return toBean.convert(typeOfT, source);
   }
@@ -76,7 +81,11 @@ public class Json {
   private static Object readValue(JsonReader in, Gson gson) throws IOException {
     switch (in.peek()) {
       case BEGIN_ARRAY:
+        return gson.fromJson(in, List.class);
+
       case BEGIN_OBJECT:
+        return gson.fromJson(in, Map.class);
+
       case BOOLEAN:
       case NULL:
       case STRING:
@@ -98,9 +107,9 @@ public class Json {
     return new JsonInput(GSON, GSON.newJsonReader(from));
   }
 
-  public JsonOutput newOutput(Writer to) throws UncheckedIOException {
+  public JsonOutput newOutput(Appendable to) throws UncheckedIOException {
     try {
-      return new JsonOutput(toJson, GSON.newJsonWriter(to));
+      return new JsonOutput(toJson, GSON.newJsonWriter(CharStreams.asWriter(to)));
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }

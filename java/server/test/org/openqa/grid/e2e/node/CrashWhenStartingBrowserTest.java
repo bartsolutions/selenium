@@ -28,7 +28,7 @@ import org.junit.Test;
 import org.openqa.grid.common.GridRole;
 import org.openqa.grid.e2e.utils.GridTestHelper;
 import org.openqa.grid.e2e.utils.RegistryTestHelper;
-import org.openqa.grid.internal.Registry;
+import org.openqa.grid.internal.GridRegistry;
 import org.openqa.grid.internal.RemoteProxy;
 import org.openqa.grid.internal.utils.SelfRegisteringRemote;
 import org.openqa.grid.selenium.proxy.DefaultRemoteProxy;
@@ -50,7 +50,7 @@ public class CrashWhenStartingBrowserTest {
 
   private Hub hub;
   private SelfRegisteringRemote remote;
-  private Registry registry;
+  private GridRegistry registry;
   private Wait<Object> wait = new FluentWait<Object>("").withTimeout(30, SECONDS);
 
   private String proxyId;
@@ -87,8 +87,7 @@ public class CrashWhenStartingBrowserTest {
 
     try {
       Capabilities ff = new FirefoxOptions()
-          .setBinary(WRONG_PATH)
-          .addTo(DesiredCapabilities.firefox());
+          .setBinary(WRONG_PATH);
       new RemoteWebDriver(hub.getWebDriverHubRequestURL(), ff);
       fail("Expected WebDriverException to be thrown");
     } catch (SessionNotCreatedException expected) {

@@ -19,7 +19,9 @@ package org.openqa.selenium.remote.server;
 
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
+import static org.openqa.selenium.json.Json.MAP_TYPE;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -27,9 +29,11 @@ import com.google.common.collect.ImmutableSet;
 
 import org.junit.Test;
 import org.openqa.selenium.Capabilities;
+import org.openqa.selenium.ImmutableCapabilities;
 import org.openqa.selenium.Platform;
-import org.openqa.selenium.remote.BeanToJsonConverter;
+import org.openqa.selenium.json.Json;
 import org.openqa.selenium.remote.Dialect;
+import org.openqa.selenium.remote.NewSessionPayload;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -43,12 +47,12 @@ public class NewSessionPayloadTest {
     ImmutableMap<String, ImmutableMap<String, String>> caps = ImmutableMap.of(
         "desiredCapabilities", ImmutableMap.of("browserName", "cheese"));
 
-    try (NewSessionPayload payload = new NewSessionPayload(caps)) {
+    try (NewSessionPayload payload = NewSessionPayload.create(caps)) {
       assertEquals(ImmutableSet.of(Dialect.OSS), payload.getDownstreamDialects());
     }
 
-    String json = new BeanToJsonConverter().convert(caps);
-    try (NewSessionPayload payload = new NewSessionPayload(Long.MAX_VALUE, new StringReader(json))) {
+    String json = new Json().toJson(caps);
+    try (NewSessionPayload payload = NewSessionPayload.create(new StringReader(json))) {
       assertEquals(ImmutableSet.of(Dialect.OSS), payload.getDownstreamDialects());
     }
   }
@@ -59,12 +63,12 @@ public class NewSessionPayloadTest {
         "capabilities", ImmutableMap.of(
             "alwaysMatch", ImmutableMap.of("browserName", "cheese")));
 
-    try (NewSessionPayload payload = new NewSessionPayload(caps)) {
+    try (NewSessionPayload payload = NewSessionPayload.create(caps)) {
       assertEquals(ImmutableSet.of(Dialect.W3C), payload.getDownstreamDialects());
     }
 
-    String json = new BeanToJsonConverter().convert(caps);
-    try (NewSessionPayload payload = new NewSessionPayload(Long.MAX_VALUE, new StringReader(json))) {
+    String json = new Json().toJson(caps);
+    try (NewSessionPayload payload = NewSessionPayload.create(new StringReader(json))) {
       assertEquals(ImmutableSet.of(Dialect.W3C), payload.getDownstreamDialects());
     }
   }
@@ -72,12 +76,12 @@ public class NewSessionPayloadTest {
   @Test
   public void shouldDefaultToAssumingADownstreamOssDialect() throws IOException {
     ImmutableMap<String, Object> caps = ImmutableMap.of();
-    try (NewSessionPayload payload = new NewSessionPayload(caps)) {
+    try (NewSessionPayload payload = NewSessionPayload.create(caps)) {
       assertEquals(ImmutableSet.of(Dialect.OSS), payload.getDownstreamDialects());
     }
 
-    String json = new BeanToJsonConverter().convert(caps);
-    try (NewSessionPayload payload = new NewSessionPayload(Long.MAX_VALUE, new StringReader(json))) {
+    String json = new Json().toJson(caps);
+    try (NewSessionPayload payload = NewSessionPayload.create(new StringReader(json))) {
       assertEquals(ImmutableSet.of(Dialect.OSS), payload.getDownstreamDialects());
     }
   }
@@ -151,7 +155,7 @@ public class NewSessionPayloadTest {
 
     assertEquals(Platform.LINUX, capabilities.get(0).getPlatform());
     assertEquals(Platform.LINUX, capabilities.get(0).getCapability("platform"));
-    assertEquals(Platform.LINUX, capabilities.get(0).getCapability("platformName"));
+    assertEquals(null, capabilities.get(0).getCapability("platformName"));
   }
 
   @Test
@@ -161,8 +165,8 @@ public class NewSessionPayloadTest {
             "alwaysMatch", ImmutableMap.of("platformName", "linux"))));
 
     assertEquals(Platform.LINUX, capabilities.get(0).getPlatform());
-    assertEquals(Platform.LINUX, capabilities.get(0).getCapability("platform"));
-    assertEquals(Platform.LINUX, capabilities.get(0).getCapability("platformName"));
+    assertEquals(null, capabilities.get(0).getCapability("platform"));
+    assertEquals("linux", capabilities.get(0).getCapability("platformName"));
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -184,16 +188,69 @@ public class NewSessionPayloadTest {
     fail("We should never see this");
   }
 
+  @Test
+  public void convertEverythingToFirstMatchOnlyifPayloadContainsAlwaysMatchSectionAndOssCapabilities()
+      throws IOException {
+    List<Capabilities> capabilities = create(ImmutableMap.of(
+        "desiredCapabilities", ImmutableMap.of(
+            "browserName", "firefox",
+            "platform", "WINDOWS"),
+        "capabilities", ImmutableMap.of(
+            "alwaysMatch", ImmutableMap.of(
+                "platformName", "macos"),
+            "firstMatch", ImmutableList.of(
+                ImmutableMap.of("browserName", "foo"),
+                ImmutableMap.of("browserName", "firefox")))));
+
+    assertEquals(ImmutableList.of(
+        // From OSS
+        new ImmutableCapabilities("browserName", "firefox", "platform", "WINDOWS"),
+        // Generated from OSS
+        new ImmutableCapabilities("browserName", "firefox", "platformName", "windows"),
+        // From the actual W3C capabilities
+        new ImmutableCapabilities("browserName", "foo", "platformName", "macos"),
+        new ImmutableCapabilities("browserName", "firefox", "platformName", "macos")),
+                 capabilities);
+  }
+
+  @Test
+  public void forwardsMetaDataAssociatedWithARequest() throws IOException {
+    try (NewSessionPayload payload = NewSessionPayload.create(    ImmutableMap.of(
+        "desiredCapabilities", ImmutableMap.of(),
+        "cloud:user", "bob",
+        "cloud:key", "there is no cake"))) {
+      StringBuilder toParse = new StringBuilder();
+      payload.writeTo(toParse);
+      Map<String, Object> seen = new Json().toType(toParse.toString(), MAP_TYPE);
+
+      assertEquals("bob", seen.get("cloud:user"));
+      assertEquals("there is no cake", seen.get("cloud:key"));
+    }
+  }
+
+  @Test
+  public void doesNotForwardRequiredCapabilitiesAsTheseAreVeryLegacy() throws IOException {
+    try (NewSessionPayload payload = NewSessionPayload.create(    ImmutableMap.of(
+        "capabilities", ImmutableMap.of(),
+        "requiredCapabilities", ImmutableMap.of("key", "so it's not empty")))) {
+      StringBuilder toParse = new StringBuilder();
+      payload.writeTo(toParse);
+      Map<String, Object> seen = new Json().toType(toParse.toString(), MAP_TYPE);
+
+      assertNull(seen.get("requiredCapabilities"));
+    }
+  }
+
   private List<Capabilities> create(Map<String, ?> source) throws IOException {
     List<Capabilities> presumablyFromMemory;
     List<Capabilities> fromDisk;
 
-    try (NewSessionPayload payload = new NewSessionPayload(source)) {
+    try (NewSessionPayload payload = NewSessionPayload.create(source)) {
       presumablyFromMemory = payload.stream().collect(ImmutableList.toImmutableList());
     }
 
-    String json = new BeanToJsonConverter().convert(source);
-    try (NewSessionPayload payload = new NewSessionPayload(Long.MAX_VALUE, new StringReader(json))) {
+    String json = new Json().toJson(source);
+    try (NewSessionPayload payload = NewSessionPayload.create(new StringReader(json))) {
       fromDisk = payload.stream().collect(ImmutableList.toImmutableList());
     }
 

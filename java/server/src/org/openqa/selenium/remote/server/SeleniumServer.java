@@ -17,15 +17,22 @@
 
 package org.openqa.selenium.remote.server;
 
+import static org.openqa.selenium.remote.server.WebDriverServlet.NEW_SESSION_PIPELINE_KEY;
+
 import com.beust.jcommander.JCommander;
 
+import org.openqa.grid.internal.utils.configuration.GridNodeConfiguration;
 import org.openqa.grid.internal.utils.configuration.StandaloneConfiguration;
+import org.openqa.grid.selenium.node.ChromeMutator;
+import org.openqa.grid.selenium.node.FirefoxMutator;
 import org.openqa.grid.shared.GridNodeServer;
 import org.openqa.grid.web.servlet.DisplayHelpServlet;
 import org.openqa.grid.web.servlet.beta.ConsoleServlet;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.remote.SessionId;
 import org.openqa.selenium.remote.server.handler.DeleteSession;
+import org.openqa.selenium.remote.server.jmx.JMXHelper;
+import org.openqa.selenium.remote.server.jmx.ManagedService;
 import org.seleniumhq.jetty9.security.ConstraintMapping;
 import org.seleniumhq.jetty9.security.ConstraintSecurityHandler;
 import org.seleniumhq.jetty9.server.Connector;
@@ -46,6 +53,7 @@ import javax.servlet.Servlet;
 /**
  * Provides a server that can launch and manage selenium sessions.
  */
+@ManagedService(objectName = "org.seleniumhq.server:type=SeleniumServer")
 public class SeleniumServer implements GridNodeServer {
 
   private final static Logger LOG = Logger.getLogger(SeleniumServer.class.getName());
@@ -68,6 +76,8 @@ public class SeleniumServer implements GridNodeServer {
 
   public SeleniumServer(StandaloneConfiguration configuration) {
     this.configuration = configuration;
+
+    new JMXHelper().register(this);
   }
 
   public int getRealPort() {
@@ -134,6 +144,10 @@ public class SeleniumServer implements GridNodeServer {
         new DefaultDriverFactory(Platform.getCurrent()),
         TimeUnit.SECONDS.toMillis(inactiveSessionTimeoutSeconds));
     handler.setAttribute(DriverServlet.SESSIONS_KEY, driverSessions);
+
+    NewSessionPipeline pipeline = createPipeline(configuration);
+    handler.setAttribute(NEW_SESSION_PIPELINE_KEY, pipeline);
+
     handler.setContextPath("/");
     if (configuration.enablePassThrough) {
       LOG.info("Using the passthrough mode handler");
@@ -181,6 +195,21 @@ public class SeleniumServer implements GridNodeServer {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+  }
+
+  private NewSessionPipeline createPipeline(StandaloneConfiguration configuration) {
+    NewSessionPipeline.Builder builder = DefaultPipeline.createPipelineWithDefaultFallbacks();
+
+    if (configuration instanceof GridNodeConfiguration) {
+      ((GridNodeConfiguration) configuration).capabilities.forEach(
+          caps -> {
+            builder.addCapabilitiesMutator(new ChromeMutator(caps));
+            builder.addCapabilitiesMutator(new FirefoxMutator(caps));
+          }
+      );
+    }
+
+    return builder.create();
   }
 
   /**

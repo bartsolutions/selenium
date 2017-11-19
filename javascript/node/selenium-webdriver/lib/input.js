@@ -38,7 +38,7 @@ const Button = {
 /**
  * Representations of pressable keys that aren't text.  These are stored in
  * the Unicode PUA (Private Use Area) code points, 0xE000-0xF8FF.  Refer to
- * http://www.google.com.au/search?&q=unicode+pua&btnG=Search
+ * http://www.google.com.au/search?&q=unicode+pua&btnK=Search
  *
  * @enum {string}
  * @see <https://www.w3.org/TR/webdriver/#keyboard-actions>
@@ -503,14 +503,14 @@ class PointerSequence extends Sequence {
    * {@linkplain ./webdriver.WebElement WebElement}.
    *
    * @param {{
-   *   x: number,
-   *   y: number,
+   *   x: (number|undefined),
+   *   y: (number|undefined),
    *   duration: (number|undefined),
    *   origin: (!Origin|!./webdriver.WebElement|undefined),
    * }} options the move options.
    * @return {!PointerSequence} a self reference.
    */
-  pointerMove({x, y, duration = 100, origin = Origin.VIEWPORT}) {
+  pointerMove({x = 0, y = 0, duration = 100, origin = Origin.VIEWPORT}) {
     this.actions_.push({
       type: ActionType.POINTER_MOVE,
       origin,

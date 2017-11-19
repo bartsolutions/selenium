@@ -18,18 +18,13 @@
 package org.openqa.selenium;
 
 
-import org.openqa.selenium.logging.LogLevelMapping;
-import org.openqa.selenium.logging.LoggingPreferences;
-
 import java.io.Serializable;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
-public class MutableCapabilities implements Capabilities, Serializable {
+public class MutableCapabilities extends AbstractCapabilities implements Serializable {
 
   private static final long serialVersionUID = -112816287184979465L;
 
@@ -46,9 +41,6 @@ public class MutableCapabilities implements Capabilities, Serializable {
     OPTION_KEYS = Collections.unmodifiableSet(keys);
   }
 
-  private final Map<String, Object> caps = new HashMap<>();
-
-
   public MutableCapabilities() {
     // no-arg constructor
   }
@@ -63,43 +55,6 @@ public class MutableCapabilities implements Capabilities, Serializable {
         setCapability(key, value);
       }
     });
-  }
-
-  @Override
-  public Object getCapability(String capabilityName) {
-    return caps.get(capabilityName);
-  }
-
-  @Override
-  public Map<String, ?> asMap() {
-    return Collections.unmodifiableMap(caps);
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (!(o instanceof Capabilities)) {
-      return false;
-    }
-
-    Capabilities that = (Capabilities) o;
-
-    return asMap().equals(that.asMap());
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(amendHashCode(), caps);
-  }
-
-  /**
-   * Subclasses can use this to add information that isn't always in the capabilities map.
-   * @return
-   */
-  protected int amendHashCode() {
-    return 0;
   }
 
   /**
@@ -143,61 +98,6 @@ public class MutableCapabilities implements Capabilities, Serializable {
       return;
     }
 
-    if ("loggingPrefs".equals(key) && value instanceof Map) {
-      LoggingPreferences prefs = new LoggingPreferences();
-      @SuppressWarnings("unchecked") Map<String, String> prefsMap = (Map<String, String>) value;
-
-      for (String logType : prefsMap.keySet()) {
-        prefs.enable(logType, LogLevelMapping.toLevel(prefsMap.get(logType)));
-      }
-      caps.put(key, prefs);
-      return;
-    }
-
-    if ("platform".equals(key) && value instanceof String) {
-      try {
-        caps.put(key, Platform.fromString((String) value));
-      } catch (WebDriverException e) {
-        caps.put(key, value);
-      }
-      return;
-    }
-
-    if ("unexpectedAlertBehaviour".equals(key)) {
-      caps.put("unexpectedAlertBehaviour", value);
-      caps.put("unhandledPromptBehavior", value);
-      return;
-    }
-
-    if (value == null) {
-      caps.remove(key);
-    } else {
-      caps.put(key, value);
-    }
-  }
-
-  @Override
-  public String toString() {
-    return String.format("Capabilities [%s]", shortenMapValues(asMap()));
-  }
-
-  private Map<String, ?> shortenMapValues(Map<String, ?> map) {
-    Map<String, Object> newMap = new HashMap<>();
-
-    for (Map.Entry<String, ?> entry : map.entrySet()) {
-      if (entry.getValue() instanceof Map) {
-        @SuppressWarnings("unchecked") Map<String, ?> value = (Map<String, ?>) entry.getValue();
-        newMap.put(entry.getKey(), shortenMapValues(value));
-
-      } else {
-        String value = String.valueOf(entry.getValue());
-        if (value.length() > 1024) {
-          value = value.substring(0, 29) + "...";
-        }
-        newMap.put(entry.getKey(), value);
-      }
-    }
-
-    return newMap;
+    super.setCapability(key, value);
   }
 }

@@ -91,7 +91,7 @@ class Options {
     /** @private {!Object<(boolean|number|string|!Array<string>)>} */
     this.options_ = {};
 
-    /** @private {(capabilities.ProxyConfig|null)} */
+    /** @private {(./lib/proxy.Config|null)} */
     this.proxy_ = null;
   }
 
@@ -324,7 +324,7 @@ class Options {
 
   /**
    * Sets the proxy settings for the new session.
-   * @param {capabilities.ProxyConfig} proxy The proxy configuration to use.
+   * @param {./lib/proxy.Config} proxy The proxy configuration to use.
    * @return {!Options} A self reference.
    */
   setProxy(proxy) {
@@ -352,6 +352,18 @@ class Options {
 }
 
 
+/**
+ * _Synchronously_ attempts to locate the IE driver executable on the current
+ * system.
+ *
+ * @return {?string} the located executable, or `null`.
+ */
+function locateSynchronously() {
+  return process.platform === 'win32'
+      ? io.findInPath(IEDRIVER_EXE, true) : null;
+}
+
+
 function createServiceFromCapabilities(capabilities) {
   if (process.platform !== 'win32') {
     throw Error(
@@ -360,7 +372,7 @@ function createServiceFromCapabilities(capabilities) {
         'WebDriver server?');
   }
 
-  let exe = io.findInPath(IEDRIVER_EXE, true);
+  let exe = locateSynchronously();
   if (!exe || !fs.existsSync(exe)) {
     throw Error(
         `${IEDRIVER_EXE} could not be found on the current PATH. Please ` +
@@ -437,3 +449,5 @@ class Driver extends webdriver.WebDriver {
 exports.Driver = Driver;
 exports.Options = Options;
 exports.Level = Level;
+exports.locateSynchronously = locateSynchronously;
+

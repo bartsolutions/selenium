@@ -197,6 +197,17 @@ function configureExecutor(executor) {
 
 
 /**
+ * _Synchronously_ attempts to locate the chromedriver executable on the current
+ * system.
+ *
+ * @return {?string} the located executable, or `null`.
+ */
+function locateSynchronously() {
+  return io.findInPath(CHROMEDRIVER_EXE, true);
+}
+
+
+/**
  * Creates {@link selenium-webdriver/remote.DriverService} instances that manage
  * a [ChromeDriver](https://sites.google.com/a/chromium.org/chromedriver/)
  * server in a child process.
@@ -210,7 +221,7 @@ class ServiceBuilder extends remote.DriverService.Builder {
    *     cannot be found on the PATH.
    */
   constructor(opt_exe) {
-    let exe = opt_exe || io.findInPath(CHROMEDRIVER_EXE, true);
+    let exe = opt_exe || locateSynchronously();
     if (!exe) {
       throw Error(
           'The ChromeDriver could not be found on the current PATH. Please ' +
@@ -324,7 +335,7 @@ class Options {
     /** @private {?logging.Preferences} */
     this.logPrefs_ = null;
 
-    /** @private {?./lib/capabilities.ProxyConfig} */
+    /** @private {?./lib/proxy.Config} */
     this.proxy_ = null;
   }
 
@@ -675,7 +686,7 @@ class Options {
 
   /**
    * Sets the proxy settings for the new session.
-   * @param {./lib/capabilities.ProxyConfig} proxy The proxy configuration to
+   * @param {./lib/proxy.Config} proxy The proxy configuration to
    *    use.
    * @return {!Options} A self reference.
    */
@@ -755,6 +766,16 @@ class Driver extends webdriver.WebDriver {
         opt_config instanceof Options ? opt_config.toCapabilities() :
         (opt_config || Capabilities.chrome());
 
+    // W3C spec requires noProxy value to be an array of strings, but Chrome
+    // expects a single host as a string.
+    let proxy = caps.get(Capability.PROXY);
+    if (proxy && Array.isArray(proxy.noProxy)) {
+      proxy.noProxy = proxy.noProxy[0];
+      if (!proxy.noProxy) {
+        proxy.noProxy = undefined;
+      }
+    }
+
     return /** @type {!Driver} */(super.createSession(executor, caps));
   }
 
@@ -820,3 +841,4 @@ exports.Options = Options;
 exports.ServiceBuilder = ServiceBuilder;
 exports.getDefaultService = getDefaultService;
 exports.setDefaultService = setDefaultService;
+exports.locateSynchronously = locateSynchronously;

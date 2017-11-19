@@ -24,6 +24,7 @@ import com.google.common.collect.ImmutableMap;
 import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.Platform;
+import org.openqa.selenium.Proxy;
 import org.openqa.selenium.remote.BrowserType;
 import org.openqa.selenium.remote.CapabilityType;
 
@@ -76,6 +77,11 @@ public class EdgeOptions extends MutableCapabilities {
     setCapability(PAGE_LOAD_STRATEGY, Objects.requireNonNull(strategy));
   }
 
+  public EdgeOptions setProxy(Proxy proxy) {
+    setCapability(CapabilityType.PROXY, proxy);
+    return this;
+  }
+
   /**
    * Returns DesiredCapabilities for Edge with these options included as capabilities. This does not
    * copy the options. Further changes will be reflected in the returned capabilities.
@@ -88,7 +94,7 @@ public class EdgeOptions extends MutableCapabilities {
   }
 
   @Override
-  public Map<String, ?> asMap() {
+  public Map<String, Object> asMap() {
     return ImmutableMap.of(CAPABILITY, super.asMap());
   }
 }

@@ -17,7 +17,8 @@
 
 'use strict';
 
-const assert = require('../testing/assert');
+const assert = require('assert');
+
 const chrome = require('../chrome');
 const edge = require('../edge');
 const firefox = require('../firefox');
@@ -30,7 +31,7 @@ const {WebDriver} = require('..');
 
 
 test.suite(function(env) {
-  var browsers = env.browsers;
+  const browsers = (...args) => env.browsers(...args);
 
   const BROWSER_MAP = new Map([
     [Browser.CHROME, chrome.Driver],
@@ -40,24 +41,27 @@ test.suite(function(env) {
     [Browser.SAFARI, safari.Driver],
   ]);
 
-  if (BROWSER_MAP.has(env.currentBrowser())) {
+  if (BROWSER_MAP.has(env.browser.name)) {
     describe('builder creates thenable driver instances', function() {
       let driver;
 
       after(() => driver && driver.quit());
 
-      it(env.currentBrowser(), function() {
+      it(env.browser.name, function() {
         driver = env.builder().build();
 
-        const want = BROWSER_MAP.get(env.currentBrowser());
-        assert(driver).instanceOf(want,
+        const want = BROWSER_MAP.get(env.browser.name);
+        assert.ok(
+            driver instanceof want,
             `want ${want.name}, but got ${driver.name}`);
-        assert(typeof driver.then).equalTo('function');
+        assert.equal(typeof driver.then, 'function');
 
         return driver
             .then(
-                d => assert(d)
-                    .instanceOf(want, `want ${want.name}, but got ${d.name}`))
+                d =>
+                    assert.ok(
+                        d instanceof want,
+                        `want ${want.name}, but got ${d.name}`))
             // Load something so the safari driver doesn't crash from starting and
             // stopping in short time.
             .then(() => driver.get(Pages.echoPage));

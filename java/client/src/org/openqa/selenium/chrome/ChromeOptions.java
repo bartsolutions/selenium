@@ -32,6 +32,7 @@ import com.google.common.io.Files;
 import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.PageLoadStrategy;
+import org.openqa.selenium.Proxy;
 import org.openqa.selenium.SessionNotCreatedException;
 import org.openqa.selenium.UnexpectedAlertBehaviour;
 import org.openqa.selenium.remote.BrowserType;
@@ -242,6 +243,11 @@ public class ChromeOptions extends MutableCapabilities {
     return this;
   }
 
+  public ChromeOptions setProxy(Proxy proxy) {
+    setCapability(CapabilityType.PROXY, proxy);
+    return this;
+  }
+
   /**
    * Returns DesiredCapabilities for Chrome with these options included as
    * capabilities. This does not copy the options. Further changes will be
@@ -266,7 +272,7 @@ public class ChromeOptions extends MutableCapabilities {
   }
 
   @Override
-  public Map<String, ?> asMap() {
+  public Map<String, Object> asMap() {
     Map<String, Object> toReturn = new TreeMap<>();
     toReturn.putAll(super.asMap());
 

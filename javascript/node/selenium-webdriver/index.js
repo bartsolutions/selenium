@@ -31,7 +31,6 @@ const by = require('./lib/by');
 const capabilities = require('./lib/capabilities');
 const command = require('./lib/command');
 const error = require('./lib/error');
-const events = require('./lib/events');
 const input = require('./lib/input');
 const logging = require('./lib/logging');
 const promise = require('./lib/promise');
@@ -338,18 +337,22 @@ class Builder {
    * environment variable. If set, this environment variable should be of the
    * form `browser[:[version][:platform]]`.
    *
-   * @param {(string|Browser)} name The name of the target browser;
+   * @param {(string|!Browser)} name The name of the target browser;
    *     common defaults are available on the {@link webdriver.Browser} enum.
    * @param {string=} opt_version A desired version; may be omitted if any
    *     version should be used.
-   * @param {string=} opt_platform The desired platform; may be omitted if any
-   *     version may be used.
+   * @param {(string|!capabilities.Platform)=} opt_platform
+   *     The desired platform; may be omitted if any platform may be used.
    * @return {!Builder} A self reference.
    */
   forBrowser(name, opt_version, opt_platform) {
-    this.capabilities_.set(Capability.BROWSER_NAME, name);
-    this.capabilities_.set(Capability.VERSION, opt_version || null);
-    this.capabilities_.set(Capability.PLATFORM, opt_platform || null);
+    this.capabilities_.setBrowserName(name);
+    if (opt_version) {
+      this.capabilities_.setBrowserVersion(opt_version);
+    }
+    if (opt_platform) {
+      this.capabilities_.setPlatform(opt_platform);
+    }
     return this;
   }
 
@@ -358,7 +361,7 @@ class Builder {
    * Any calls to {@link #withCapabilities} after this function will
    * overwrite these settings.
    *
-   * @param {!capabilities.ProxyConfig} config The configuration to use.
+   * @param {!./lib/proxy.Config} config The configuration to use.
    * @return {!Builder} A self reference.
    */
   setProxy(config) {
@@ -379,32 +382,12 @@ class Builder {
   }
 
   /**
-   * Sets whether native events should be used.
-   * @param {boolean} enabled Whether to enable native events.
-   * @return {!Builder} A self reference.
-   */
-  setEnableNativeEvents(enabled) {
-    this.capabilities_.setEnableNativeEvents(enabled);
-    return this;
-  }
-
-  /**
-   * Sets how elements should be scrolled into view for interaction.
-   * @param {number} behavior The desired scroll behavior: either 0 to align
-   *     with the top of the viewport or 1 to align with the bottom.
-   * @return {!Builder} A self reference.
-   */
-  setScrollBehavior(behavior) {
-    this.capabilities_.setScrollBehavior(behavior);
-    return this;
-  }
-
-  /**
    * Sets the default action to take with an unexpected alert before returning
    * an error.
-   * @param {string} behavior The desired behavior; should be "accept",
-   *     "dismiss", or "ignore". Defaults to "dismiss".
+   *
+   * @param {?capabilities.UserPromptHandler} behavior The desired behavior.
    * @return {!Builder} A self reference.
+   * @see capabilities.Capabilities#setAlertBehavior
    */
   setAlertBehavior(behavior) {
     this.capabilities_.setAlertBehavior(behavior);
@@ -517,9 +500,10 @@ class Builder {
     if (!this.ignoreEnv_ && process.env.SELENIUM_BROWSER) {
       this.log_.fine(`SELENIUM_BROWSER=${process.env.SELENIUM_BROWSER}`);
       browser = process.env.SELENIUM_BROWSER.split(/:/, 3);
-      capabilities.set(Capability.BROWSER_NAME, browser[0]);
-      capabilities.set(Capability.VERSION, browser[1] || null);
-      capabilities.set(Capability.PLATFORM, browser[2] || null);
+      capabilities.setBrowserName(browser[0]);
+
+      browser[1] && capabilities.setBrowserVersion(browser[1]);
+      browser[2] && capabilities.setPlatform(browser[2]);
     }
 
     browser = capabilities.get(Capability.BROWSER_NAME);
@@ -619,7 +603,6 @@ exports.By = by.By;
 exports.Capabilities = capabilities.Capabilities;
 exports.Capability = capabilities.Capability;
 exports.Condition = webdriver.Condition;
-exports.EventEmitter = events.EventEmitter;
 exports.FileDetector = input.FileDetector;
 exports.Key = input.Key;
 exports.Session = session.Session;

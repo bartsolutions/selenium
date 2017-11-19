@@ -33,23 +33,29 @@ import com.google.gson.annotations.Expose;
 import com.beust.jcommander.Parameter;
 
 import org.openqa.grid.common.JSONConfigurationUtils;
+import org.openqa.grid.common.RegistrationRequest;
+import org.openqa.grid.common.SeleniumProtocol;
 import org.openqa.grid.common.exception.GridConfigurationException;
 import org.openqa.grid.internal.utils.configuration.converters.BrowserDesiredCapabilityConverter;
 import org.openqa.grid.internal.utils.configuration.converters.NoOpParameterSplitter;
 import org.openqa.grid.internal.utils.configuration.validators.FileExistsValueValidator;
 import org.openqa.selenium.MutableCapabilities;
-import org.openqa.selenium.remote.BeanToJsonConverter;
+import org.openqa.selenium.Platform;
+import org.openqa.selenium.json.Json;
+import org.openqa.selenium.net.NetworkUtils;
+import org.openqa.selenium.remote.CapabilityType;
 import org.openqa.selenium.remote.DesiredCapabilities;
-import org.openqa.selenium.remote.JsonToBeanConverter;
 
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public class GridNodeConfiguration extends GridConfiguration {
   public static final String DEFAULT_NODE_CONFIG_FILE = "defaults/DefaultNodeWebDriver.json";
+  public static final String CONFIG_UUID_CAPABILITY = "_CONFIG_UUID";
 
   /*
    * IMPORTANT - Keep these constant values in sync with the ones specified in
@@ -475,9 +481,9 @@ public class GridNodeConfiguration extends GridConfiguration {
                                  JsonSerializationContext jsonSerializationContext) {
 
       JsonArray capabilities = new JsonArray();
-      BeanToJsonConverter converter = new BeanToJsonConverter();
+      Json json = new Json();
       for (MutableCapabilities dc : desiredCapabilities) {
-        capabilities.add(converter.convertObject(dc));
+        capabilities.add(json.toJsonElement(dc));
       }
       return capabilities;
     }
@@ -493,13 +499,39 @@ public class GridNodeConfiguration extends GridConfiguration {
 
       if (jsonElement.isJsonArray()) {
         List<MutableCapabilities> desiredCapabilities = new ArrayList<>();
-        JsonToBeanConverter converter = new JsonToBeanConverter();
+        Json json = new Json();
         for (JsonElement arrayElement : jsonElement.getAsJsonArray()) {
-          desiredCapabilities.add(converter.convert(DesiredCapabilities.class, arrayElement));
+          desiredCapabilities.add(json.toType(arrayElement, DesiredCapabilities.class));
         }
         return desiredCapabilities;
       }
       throw new JsonParseException("capabilities should be expressed as an array of objects.");
+    }
+  }
+
+  public void fixUpCapabilities() {
+    if (capabilities == null) {
+      return; // assumes the caller set it/wants it this way
+    }
+
+    Platform current = Platform.getCurrent();
+    for (MutableCapabilities cap : capabilities) {
+      if (cap.getPlatform() == null) {
+        cap.setCapability(CapabilityType.PLATFORM, current);
+      }
+      if (cap.getCapability(RegistrationRequest.SELENIUM_PROTOCOL) == null) {
+        cap.setCapability(RegistrationRequest.SELENIUM_PROTOCOL, SeleniumProtocol.WebDriver.toString());
+      }
+      cap.setCapability(CONFIG_UUID_CAPABILITY, UUID.randomUUID().toString());
+    }
+  }
+
+  public void fixUpHost() {
+    NetworkUtils util = new NetworkUtils();
+    if (host == null || "ip".equalsIgnoreCase(host)) {
+      host = util.getIp4NonLoopbackAddressOfThisMachine().getHostAddress();
+    } else if ("host".equalsIgnoreCase(host)) {
+      host = util.getIp4NonLoopbackAddressOfThisMachine().getHostName();
     }
   }
 }

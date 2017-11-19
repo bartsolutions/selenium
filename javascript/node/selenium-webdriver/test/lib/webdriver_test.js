@@ -191,7 +191,10 @@ describe('WebDriver', function() {
       let executor = new FakeExecutor().
           expect(CName.NEW_SESSION).
           withParameters({
-            'desiredCapabilities': {'browserName': 'firefox'}
+            'desiredCapabilities': {'browserName': 'firefox'},
+            'capabilities': {
+              'alwaysMatch': {'browserName': 'firefox'},
+            },
           }).
           andReturnSuccess(aSession).
           end();
@@ -206,7 +209,12 @@ describe('WebDriver', function() {
       let aSession = new Session(SESSION_ID, {'browserName': 'firefox'});
       let executor = new FakeExecutor().
           expect(CName.NEW_SESSION).
-          withParameters({'desiredCapabilities': {'browserName': 'firefox'}}).
+          withParameters({
+            'desiredCapabilities': {'browserName': 'firefox'},
+            'capabilities': {
+              'alwaysMatch': {'browserName': 'firefox'},
+            },
+          }).
           andReturnSuccess(aSession).
           end();
 
@@ -214,27 +222,35 @@ describe('WebDriver', function() {
       return driver.getSession().then(v => assert.strictEqual(v, aSession));
     });
 
-    it('handles desired and required capabilities', function() {
+    it('drops non-W3C capability names from W3C capabilities', function() {
       let aSession = new Session(SESSION_ID, {'browserName': 'firefox'});
       let executor = new FakeExecutor().
           expect(CName.NEW_SESSION).
           withParameters({
-            'desiredCapabilities': {'foo': 'bar'},
-            'requiredCapabilities': {'bim': 'baz'}
+            'desiredCapabilities': {'browserName': 'firefox', 'foo': 'bar'},
+            'capabilities': {
+              'alwaysMatch': {'browserName': 'firefox'},
+            },
           }).
           andReturnSuccess(aSession).
           end();
 
-      let desired = new Capabilities().set('foo', 'bar');
-      let required = new Capabilities().set('bim', 'baz');
-      var driver = WebDriver.createSession(executor, {desired, required});
+      var driver = WebDriver.createSession(executor, {
+        'browserName': 'firefox',
+        'foo': 'bar',
+      });
       return driver.getSession().then(v => assert.strictEqual(v, aSession));
     });
 
     it('failsToCreateSession', function() {
       let executor = new FakeExecutor().
           expect(CName.NEW_SESSION).
-          withParameters({'desiredCapabilities': {'browserName': 'firefox'}}).
+          withParameters({
+            'desiredCapabilities': {'browserName': 'firefox'},
+            'capabilities': {
+              'alwaysMatch': {'browserName': 'firefox'},
+            },
+          }).
           andReturnError(new StubError()).
           end();
 
@@ -247,7 +263,12 @@ describe('WebDriver', function() {
       let called = false;
       let executor = new FakeExecutor()
           .expect(CName.NEW_SESSION)
-          .withParameters({'desiredCapabilities': {'browserName': 'firefox'}})
+          .withParameters({
+            'desiredCapabilities': {'browserName': 'firefox'},
+            'capabilities': {
+              'alwaysMatch': {'browserName': 'firefox'},
+            },
+          })
           .andReturnError(new StubError())
           .end();
 
@@ -395,146 +416,6 @@ describe('WebDriver', function() {
             return driver.getCurrentUrl();
           }).
           then(url => assert.equal('http://www.google.com', url));
-    });
-  });
-
-  describe('customFunctions', function() {
-    it('returnsANonPromiseValue', function() {
-      var driver = new FakeExecutor().createDriver();
-      return driver.call(() => 'abc123').then(function(value) {
-        assert.equal('abc123', value);
-      });
-    });
-
-    it('passingArgumentsToACustomFunction', function() {
-      var add = function(a, b) {
-        return a + b;
-      };
-      var driver = new FakeExecutor().createDriver();
-      return driver.call(add, null, 1, 2).then(function(value) {
-        assert.equal(3, value);
-      });
-    });
-
-    it('passingPromisedArgumentsToACustomFunction', function() {
-      var promisedArg = Promise.resolve(2);
-      var add = function(a, b) {
-        return a + b;
-      };
-      var driver = new FakeExecutor().createDriver();
-      return driver.call(add, null, 1, promisedArg).then(function(value) {
-        assert.equal(3, value);
-      });
-    });
-
-    it('passingArgumentsAndScopeToACustomFunction', function() {
-      function Foo(name) {
-        this.name = name;
-      }
-      Foo.prototype.getName = function() {
-        return this.name;
-      };
-      var foo = new Foo('foo');
-
-      var driver = new FakeExecutor().createDriver();
-      return driver.call(foo.getName, foo).then(function(value) {
-        assert.equal('foo', value);
-      });
-    });
-
-    it('customFunctionThrowsAnError', function() {
-      var driver = new FakeExecutor().createDriver();
-      return driver.call(throwStubError).then(fail, assertIsStubError);
-    });
-
-    it('returnsATaskResultAfterSchedulingAnother', function() {
-      let executor = new FakeExecutor().
-          expect(CName.GET_TITLE).
-              andReturnSuccess('Google Search').
-          expect(CName.CLOSE).
-          end();
-
-      var driver = executor.createDriver();
-      return driver.call(function() {
-        var title = driver.getTitle();
-        driver.close();
-        return title;
-      }).then(function(title) {
-        assert.equal('Google Search', title);
-      });
-    });
-
-    it('hasANestedCommandThatFails', function() {
-      let executor = new FakeExecutor().
-          expect(CName.SWITCH_TO_WINDOW, {
-            'name': 'foo',
-            'handle': 'foo'
-          }).
-          andReturnError(new StubError()).
-          end();
-
-      var driver = executor.createDriver();
-      return driver.call(function() {
-        return driver.switchTo().window('foo');
-      }).then(fail, assertIsStubError);
-    });
-
-    it('returnsADeferredAction', function() {
-      let executor = new FakeExecutor().
-          expect(CName.GET_TITLE).andReturnSuccess('Google').
-          end();
-
-      var driver = executor.createDriver();
-      driver.call(function() {
-        return driver.getTitle();
-      }).then(function(title) {
-        assert.equal('Google', title);
-      });
-    });
-  });
-
-  describe('nestedCommands', function() {
-    it('canReturnValueFromNestedFunction', function() {
-      var driver = new FakeExecutor().createDriver();
-      return driver.call(function() {
-        return driver.call(function() {
-          return driver.call(() => 'foobar');
-        });
-      }).then(function(value) {
-        assert.equal('foobar', value);
-      });
-    });
-
-    it('errorsBubbleUp_caught', function() {
-      var driver = new FakeExecutor().createDriver();
-      return driver.call(function() {
-        return driver.call(function() {
-          return driver.call(throwStubError);
-        });
-      }).then(fail, assertIsStubError);
-    });
-
-    it('errorsBubbleUp_uncaught', function() {
-      var driver = new FakeExecutor().createDriver();
-      return driver.call(function() {
-        return driver.call(function() {
-          return driver.call(throwStubError);
-        });
-      })
-      .then(_ => assert.fail('should have failed'), assertIsStubError);
-    });
-
-    it('canScheduleCommands', function() {
-      let executor = new FakeExecutor().
-          expect(CName.GET_TITLE).
-          expect(CName.CLOSE).
-          end();
-
-      var driver = executor.createDriver();
-      return driver.call(function() {
-        return driver.call(() => driver.getTitle())
-            .then(() => driver.close());
-      });
     });
   });
 
@@ -1740,35 +1621,6 @@ describe('WebDriver', function() {
         let driver = executor.createDriver();
         return driver.manage().setTimeouts({implicit: 3});
       });
-
-      describe('deprecated API calls setTimeouts()', function() {
-        it('implicitlyWait()', function() {
-          let executor = new FakeExecutor()
-              .expect(CName.SET_TIMEOUT, {implicit: 3})
-              .andReturnSuccess()
-              .end();
-          let driver = executor.createDriver();
-          return driver.manage().timeouts().implicitlyWait(3);
-        });
-
-        it('setScriptTimeout()', function() {
-          let executor = new FakeExecutor()
-              .expect(CName.SET_TIMEOUT, {script: 3})
-              .andReturnSuccess()
-              .end();
-          let driver = executor.createDriver();
-          return driver.manage().timeouts().setScriptTimeout(3);
-        });
-
-        it('pageLoadTimeout()', function() {
-          let executor = new FakeExecutor()
-              .expect(CName.SET_TIMEOUT, {pageLoad: 3})
-              .andReturnSuccess()
-              .end();
-          let driver = executor.createDriver();
-          return driver.manage().timeouts().pageLoadTimeout(3);
-        });
-      });
     });
   });
 
@@ -1779,10 +1631,16 @@ describe('WebDriver', function() {
       function runSerializeTest(input, want) {
         let executor = new FakeExecutor().
             expect(CName.NEW_SESSION).
-            withParameters({'desiredCapabilities': want}).
+            withParameters({
+              'desiredCapabilities': {'serialize-test': want},
+              'capabilities': {'alwaysMatch': {}},
+            }).
             andReturnSuccess({'browserName': 'firefox'}).
             end();
-        return WebDriver.createSession(executor, input)
+        // We stuff the value to be serialized inside of a capabilities object,
+        // using a non-W3C key so that the value gets dropped from the W3C
+        // capabilities object.
+        return WebDriver.createSession(executor, {'serialize-test': input})
             .getSession();
       }
 
@@ -1875,8 +1733,7 @@ describe('WebDriver', function() {
 
         it('with sub-objects', function() {
           var expected = {sessionId: {value: 'foo'}};
-          return runSerializeTest(
-              {sessionId: {value: 'foo'}}, expected);
+          return runSerializeTest({sessionId: {value: 'foo'}}, expected);
         });
 
         it('with values that have toJSON', function() {
@@ -1907,6 +1764,24 @@ describe('WebDriver', function() {
           };
 
           return runSerializeTest(parameters, expected);
+        });
+
+        it('nested promises', function() {
+          const input = {
+            'struct': Promise.resolve({
+              'element': new WebElementPromise(
+                  FAKE_DRIVER,
+                  Promise.resolve(new WebElement(FAKE_DRIVER, 'fefifofum')))
+            })
+          };
+
+          const want = {
+            'struct': {
+              'element': WebElement.buildId('fefifofum')
+            }
+          };
+
+          return runSerializeTest(input, want);
         });
       });
     });

@@ -22,15 +22,14 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.gson.reflect.TypeToken;
 
 import org.junit.Test;
 import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.ImmutableCapabilities;
+import org.openqa.selenium.remote.NewSessionPayload;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
 
@@ -59,11 +58,23 @@ public class SyntheticNewSessionPayloadTest {
         "desiredCapabilities", ImmutableMap.of(),
         "capabilities", ImmutableMap.of(
             "alwaysMatch", ImmutableMap.of(),
-            "firstMatch", ImmutableList.of()));
+            "firstMatch", ImmutableList.of(ImmutableMap.of())));
 
     List<Capabilities> allCaps = getCapabilities(empty);
 
     assertEquals(ImmutableList.of(new ImmutableCapabilities()), allCaps);
+  }
+
+  @Test
+  public void shouldDoNothingIfCapabilitiesArePresentButLeftEmpty() {
+    Map<String, Object> empty = ImmutableMap.of(
+        "desiredCapabilities", ImmutableMap.of(),
+        "capabilities", ImmutableMap.of());
+
+    List<Capabilities> allCaps = getCapabilities(empty);
+
+    assertEquals(ImmutableList.of(new ImmutableCapabilities()), allCaps);
+
   }
 
   @Test
@@ -124,7 +135,7 @@ public class SyntheticNewSessionPayloadTest {
               ImmutableMap.of("browserName", "edge"),
               ImmutableMap.of("browserName", "cheese"))));
 
-    try (NewSessionPayload newSession = new NewSessionPayload(payload)) {
+    try (NewSessionPayload newSession = NewSessionPayload.create(payload)) {
       List<Capabilities> allCaps = newSession.stream().collect(ImmutableList.toImmutableList());
 
       assertEquals(3, allCaps.size());
@@ -134,24 +145,27 @@ public class SyntheticNewSessionPayloadTest {
     }
   }
 
-//  @Test
-//  public void ossPayloadWillBeFirstW3CPayload() {
-//    // This is one of the common cases --- asking for marionette to be false. There's no way to
-//    // encode this legally into the w3c payload (as it doesn't start with "se:"), yet it's a use-
-//    // case that needs to be properly supported.
-//    Map<String, Object> rawCapabilities = ImmutableMap.of(
-//        "desiredCapabilities", ImmutableMap.of("marionette", false),
-//        "capabilties", ImmutableMap.of(
-//            "alwaysMatch", ImmutableMap.of("browserName", "chrome")));
-//
-//    List<Capabilities> allCaps = getCapabilities(rawCapabilities);
-//
-//    assertEquals(2, allCaps.size());
-//    assertEquals(false, allCaps.get(0).getCapability("marionette"));
-//  }
+  @Test
+  public void ossPayloadWillBeFirstW3CPayload() {
+    // This is one of the common cases --- asking for marionette to be false. There's no way to
+    // encode this legally into the w3c payload (as it doesn't start with "se:"), yet it's a use-
+    // case that needs to be properly supported.
+    Map<String, Object> rawCapabilities = ImmutableMap.of(
+        "desiredCapabilities", ImmutableMap.of("marionette", false),
+        "capabilities", ImmutableMap.of(
+            "alwaysMatch", ImmutableMap.of("browserName", "chrome")));
+
+    List<Capabilities> allCaps = getCapabilities(rawCapabilities);
+
+    assertEquals(3, allCaps.size());
+    assertEquals(false, allCaps.get(0).getCapability("marionette"));
+  }
 
   private List<Capabilities> getCapabilities(Map<String, Object> payload) {
-    try (NewSessionPayload newSessionPayload = new NewSessionPayload(payload)) {
+    try (NewSessionPayload newSessionPayload = NewSessionPayload.create(payload)) {
+      StringBuilder b = new StringBuilder();
+      newSessionPayload.writeTo(b);
+      System.out.println("b = " + b);
       return newSessionPayload.stream().collect(ImmutableList.toImmutableList());
     } catch (IOException e) {
       throw new UncheckedIOException(e);

@@ -19,7 +19,6 @@ java_library(name = 'selenium',
     '//java/client/src/org/openqa/selenium/logging:logging',
     '//java/client/src/org/openqa/selenium/net:net',
     '//java/client/src/org/openqa/selenium/os:os',
-    '//java/client/src/org/openqa/selenium/security:security',
   ],
   visibility = ['PUBLIC'],
 )
@@ -35,6 +34,7 @@ java_library(name = 'core',
   maven_coords = 'org.seleniumhq.selenium:selenium-api:' + SE_VERSION,
   maven_pom_template = ':template-pom',
   srcs = [
+    'AbstractCapabilities.java',
     'Alert.java',
     'By.java',
     'Capabilities.java',
@@ -79,7 +79,6 @@ java_library(name = 'core',
     '//java/client/src/org/openqa/selenium/interactions:core',
     '//java/client/src/org/openqa/selenium/interactions:exceptions',
     '//java/client/src/org/openqa/selenium/logging:api',
-    '//java/client/src/org/openqa/selenium/security:security',
   ],
   visibility = [
     'PUBLIC',
@@ -99,7 +98,6 @@ java_library(name = 'beta',
     '//java/client/src/org/openqa/selenium/logging:api',
     '//java/client/src/org/openqa/selenium/logging:logging',
     '//java/client/src/org/openqa/selenium/os:os',
-    '//java/client/src/org/openqa/selenium/security:security',
   ],
 )
 
@@ -225,7 +223,7 @@ java_binary(
 genrule(
   name = 'client-combined-sources',
   out = 'client-combined-' + SE_VERSION + '-sources.jar',
-  cmd = 'mkdir temp && echo $(query_paths "inputs(kind(java_library, deps(//java/client/src/org/openqa/selenium:client-combined)))") | xargs $(exe //java/client/src/org/openqa/selenium/tools:package) $OUT',
+  cmd = 'mkdir temp && $(exe //java/client/src/org/openqa/selenium/tools:package) $OUT $(@query_paths "inputs(kind(java_library, deps(//java/client/src/org/openqa/selenium:client-combined)))")',
 )
 
 # So we hide it in another zip file, which will be merged. Zip file merging isn't recursive.
@@ -242,6 +240,7 @@ zip_file(
 genrule(
   name = 'client-libs',
   out = 'libs-sources.jar',
-  cmd = 'mkdir libs && echo $(classpath :client-combined) | tr : "\\n" | grep third_party/java | grep .jar | xargs -J % cp % libs && jar cMf $OUT libs/*',
+  bash = 'mkdir libs && python -c "import sys,shutil;map(lambda f:shutil.copy(f,\'libs\'),[l for l in open(sys.argv[1][1:]).read().strip(\'\\\'\').split(\':\') if l.endswith(\'.jar\') and \'third_party/java\' in l])" $(@classpath :client-combined) && jar cMf $OUT libs/*',
+  cmd_exe = 'mkdir libs && python -c "import sys,shutil;map(lambda f:shutil.copy(f,\'libs\'),[l for l in open(sys.argv[1][1:]).read().strip(\'\\\'\').split(\';\') if l.endswith(\'.jar\') and \'third_party\\java\' in l])" $(@classpath :client-combined) && jar cMf $OUT libs/*',
 )
 
