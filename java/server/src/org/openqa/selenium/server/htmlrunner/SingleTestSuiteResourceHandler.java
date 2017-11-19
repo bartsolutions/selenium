@@ -57,7 +57,7 @@ public class SingleTestSuiteResourceHandler extends ResourceHandler {
     }
     response.setContentType("text/html");
     String suiteName = getSuiteName(url);
-    Writer writer = new OutputStreamWriter(response.getOutputStream(), StringUtil.__ISO_8859_1);
+    Writer writer = new OutputStreamWriter(response.getOutputStream(), StringUtil.__UTF_8);
     writer.write(MessageFormat.format(HTML, new Object[] {suiteName, url}));
     writer.flush();
   }

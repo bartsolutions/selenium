@@ -38,6 +38,9 @@ import java.net.URLEncoder;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
+
 /**
  * Runs HTML Selenium test suites.
  *
@@ -91,11 +94,24 @@ public class HTMLLauncher implements HTMLResultsListener {
     return new FileWriter(outputFile);
   }
 
+
+	/**
+	 * Returns a {@link OutputStreamWriter} with UTF-8
+	 * 
+	 * @param outputFile
+	 * @return {@link OutputStreamWriter}
+	 * @throws IOException
+	 */
+	protected OutputStreamWriter getOutputStreamWriter(File outputFile) throws IOException {
+		return new OutputStreamWriter(new FileOutputStream(outputFile),"UTF-8");
+	}
+     
+
   protected void writeResults(File outputFile) throws IOException {
     if (outputFile != null) {
-      FileWriter fw = getFileWriter(outputFile);
-      results.write(fw);
-      fw.close();
+			OutputStreamWriter outputStreamWriter = getOutputStreamWriter(outputFile);
+			results.write(outputStreamWriter);
+			outputStreamWriter.close();
     }
   }
 
@@ -143,7 +159,9 @@ public class HTMLLauncher implements HTMLResultsListener {
     remoteControl.registerBrowserSession(sessionInfo);
 
     // JB: -- aren't these URLs in the wrong order according to declaration?
+    log.info("@162");
     launcher.launchHTMLSuite(suiteURL, browserURL);
+    log.info("@164");
 
     sleepTight(timeoutInMs);
 

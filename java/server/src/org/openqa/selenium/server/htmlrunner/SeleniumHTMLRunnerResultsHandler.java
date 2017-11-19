@@ -34,6 +34,12 @@ import java.util.List;
 import java.util.Vector;
 import java.util.logging.Logger;
 
+import java.nio.charset.Charset;
+
+
+import java.nio.charset.StandardCharsets;
+
+
 /**
  * Handles results of HTMLRunner (aka TestRunner, FITRunner) in automatic mode.
  *
@@ -58,15 +64,26 @@ public class SeleniumHTMLRunnerResultsHandler implements HttpHandler {
     listeners.add(listener);
   }
 
+  public String toUTF8String(String input){
+    byte[] bytes = input.getBytes(StandardCharsets.ISO_8859_1);
+    String output =  new String(bytes, StandardCharsets.UTF_8);
+    return output;
+  }
   public void handle(String pathInContext, String pathParams, HttpRequest request, HttpResponse res)
       throws HttpException, IOException {
     if (!"/postResults".equals(pathInContext)) return;
     request.setHandled(true);
     log.info("Received posted results");
     String result = request.getParameter("result");
+    log.info("@67 ");
+    log.info(result);
+    log.info("@69");
     if (result == null) {
       res.getOutputStream().write("No result was specified!".getBytes());
     }
+    res.setContentType("text/html; charset=UTF-8");
+
+    log.info("@76");
     String seleniumVersion = request.getParameter("selenium.version");
     String seleniumRevision = request.getParameter("selenium.revision");
     String totalTime = request.getParameter("totalTime");
@@ -79,38 +96,58 @@ public class SeleniumHTMLRunnerResultsHandler implements HttpHandler {
     String suite = request.getParameter("suite");
     String postedLog = request.getParameter("log");
 
+    postedLog = this.toUTF8String(postedLog);
+    suite = this.toUTF8String(suite);
+
+    log.info("@89");
     int numTotalTests = Integer.parseInt(numTestTotal);
 
     List<String> testTables = createTestTables(request, numTotalTests);
 
+    log.info("@94");
 
+    //log.info(postedLog);
+
+    log.info("@95");
     HTMLTestResults results =
         new HTMLTestResults(seleniumVersion, seleniumRevision,
             result, totalTime, numTestTotal,
             numTestPasses, numTestFailures, numCommandPasses, numCommandFailures, numCommandErrors,
             suite, testTables, postedLog);
 
+    log.info("@101");
     for (Iterator<HTMLResultsListener> i = listeners.iterator(); i.hasNext();) {
+      log.info("@103");
       HTMLResultsListener listener = i.next();
+      log.info("@99");
       listener.processResults(results);
+      log.info("@101");
       i.remove();
     }
+    log.info("@102");
     processResults(results, res);
+    log.info("@104");
   }
 
   /** Print the test results out to the HTML response */
   private void processResults(HTMLTestResults results, HttpResponse res) throws IOException {
-    res.setContentType("text/html");
+//res.setContentType("text/html");
+    res.setContentType("text/html; charset=UTF-8");
+    //res.setCharacterEncoding("UTF-8");
     OutputStream out = res.getOutputStream();
-    Writer writer = new OutputStreamWriter(out, StringUtil.__ISO_8859_1);
+    Writer writer = new OutputStreamWriter(out, StringUtil.__UTF_8);
+//hWriter out = res.getWriter();
+    log.info("@112");
     results.write(writer);
     writer.flush();
+    log.info("@115");
   }
 
   private List<String> createTestTables(HttpRequest request, int numTotalTests) {
     List<String> testTables = new LinkedList<String>();
     for (int i = 1; i <= numTotalTests; i++) {
       String testTable = request.getParameter("testTable." + i);
+      testTable = this.toUTF8String(testTable);
       // System.out.println("table " + i);
       // System.out.println(testTable);
       testTables.add(testTable);
@@ -143,3 +180,6 @@ public class SeleniumHTMLRunnerResultsHandler implements HttpHandler {
     return started;
   }
 }
+
+
+
